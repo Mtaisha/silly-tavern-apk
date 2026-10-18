@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12 以上点开图标时，系统会先画一下「图标 + 底色」，底色设成和开屏一样。 -->
+    <style name="Theme.Jiuguan.Launch" parent="Theme.Jiuguan">
+        <item name="android:windowBackground">@color/splash_bg</item>
+        <item name="android:windowSplashScreenBackground">@color/splash_bg</item>
+    </style>
+</resources>

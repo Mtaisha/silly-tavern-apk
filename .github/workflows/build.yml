@@ -1,0 +1,184 @@
+# 用 GitHub Actions 构建「酒馆」APK（只给 arm64-v8a 手机）。
+#
+# 什么时候会跑：
+#   - 推送到 main / master 分支：构建，APK 放在这次运行的 Artifacts 里
+#   - 在 Actions 页面手动点「Run workflow」：构建；配好了签名的话另外发一个 Release（手机上点开直接下载 APK）
+#
+# 签名：钥匙不在仓库里。在仓库 Settings → Secrets and variables → Actions 里配好
+#       KEYSTORE_BASE64、KEYSTORE_PASSWORD、KEY_ALIAS、KEY_PASSWORD 四项，就用这把固定的钥匙签，
+#       新版本能直接覆盖安装、数据不丢；没配就用临时的调试签名（能装，但不能覆盖别的签名装的酒馆），也不发 Release。
+#       怎么生成钥匙见 README「自己构建」。
+# 版本号：versionCode = 构建时间（北京时间）的「年月日时」，只增不减，跟本地构建同一套，所以总能覆盖旧版。
+name: 构建 APK
+
+on:
+  push:
+    branches: [main, master]
+    paths-ignore: ['**.md', 'docs/**']
+  workflow_dispatch:
+    inputs:
+      st_version:
+        description: 'SillyTavern 版本（git tag，比如 1.19.0；填 latest = GitHub 上最新正式版；不能低于 1.18.0）'
+        required: false
+        default: '1.19.0'
+      release:
+        description: '构建完发一个 Release（手机上直接下载 APK；要先配好签名 Secrets）'
+        type: boolean
+        required: false
+        default: true
+
+permissions:
+  contents: write
+
+concurrency:
+  group: build-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    env:
+      ST_VERSION: ${{ github.event.inputs.st_version || '1.19.0' }}
+    steps:
+      - name: 取代码
+        uses: actions/checkout@v4
+
+      - name: 版本号（构建时间的年月日时，北京时间）
+        run: |
+          V="$(TZ=Asia/Shanghai date +%y%m%d%H)"
+          echo "VERSION_CODE=$V" >> "$GITHUB_ENV"
+          echo "VERSION_NAME=1.0.$V" >> "$GITHUB_ENV"
+
+      - name: 安装 JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
+
+      - name: 安装 Node.js（只用来在构建机上装 SillyTavern 的依赖）
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: 准备 Android SDK
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-35" "build-tools;35.0.0" "platform-tools" > /dev/null
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+
+      - name: 缓存 Termux 软件包和分词器
+        uses: actions/cache@v4
+        with:
+          path: |
+            vendor/debs
+            vendor/tokenizers
+          key: termux-${{ github.run_id }}
+          restore-keys: termux-
+
+      - name: 下载 Node.js 和 git（Termux 的 arm64 编译版）
+        run: bash tools/fetch_termux.sh
+
+      - name: 下载 SillyTavern ${{ env.ST_VERSION }}
+        run: |
+          set -euo pipefail
+          if [ "$ST_VERSION" = "latest" ]; then
+            ST_VERSION="$(curl -sfL -H 'Accept: application/vnd.github+json' \
+              -H "Authorization: Bearer ${{ github.token }}" \
+              https://api.github.com/repos/SillyTavern/SillyTavern/releases/latest | python3 -c 'import json,sys;print(json.load(sys.stdin)["tag_name"])')"
+            echo "GitHub 上最新正式版：$ST_VERSION"
+            echo "ST_VERSION=$ST_VERSION" >> "$GITHUB_ENV"
+          fi
+          python3 - "$ST_VERSION" <<'PY'
+          import re, sys
+          v = [int(x) for x in re.findall(r'\d+', sys.argv[1])[:3]]
+          if v < [1, 18, 0]:
+              sys.exit(f'SillyTavern {sys.argv[1]} 低于 1.18.0（旧版本有能被远程删插件的漏洞），不构建')
+          PY
+          rm -rf vendor/SillyTavern
+          git clone --depth 1 --branch "$ST_VERSION" https://github.com/SillyTavern/SillyTavern.git vendor/SillyTavern
+          cd vendor/SillyTavern
+          npm ci --omit=dev --ignore-scripts --no-audit --no-fund
+
+      - name: 打包运行环境和 SillyTavern
+        run: bash tools/prepare.sh
+
+      - name: 签名钥匙（仓库 Secrets 里配了才用）
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          n=0
+          for v in KEYSTORE_BASE64 KEYSTORE_PASSWORD KEY_ALIAS KEY_PASSWORD; do
+            if [ -n "${!v:-}" ]; then n=$((n + 1)); fi
+          done
+          if [ "$n" -eq 0 ]; then
+            echo "::warning::没有配置签名 Secrets：这次用临时的调试签名，装得上，但不能覆盖安装别的签名的酒馆，也不会发 Release。"
+            echo "SIGNED=false" >> "$GITHUB_ENV"
+            exit 0
+          fi
+          if [ "$n" -ne 4 ]; then
+            # 只配了一部分，多半是 Secret 名字打错了；悄悄退回调试签名更难发现，所以直接报错
+            echo "::error::签名 Secrets 只配了 $n 项：KEYSTORE_BASE64、KEYSTORE_PASSWORD、KEY_ALIAS、KEY_PASSWORD 四项都要配"
+            exit 1
+          fi
+          mkdir -p keystore
+          printf '%s' "$KEYSTORE_BASE64" | base64 --decode --ignore-garbage > keystore/release.keystore
+          # .properties 里反斜杠是转义符，要写成两个；开头的空格会被吃掉，要转义
+          esc() { printf '%s' "$1" | sed -e 's/\\/\\\\/g' -e 's/^[[:space:]]/\\&/'; }
+          {
+            echo "storeFile=keystore/release.keystore"
+            echo "storePassword=$(esc "$KEYSTORE_PASSWORD")"
+            echo "keyAlias=$(esc "$KEY_ALIAS")"
+            echo "keyPassword=$(esc "$KEY_PASSWORD")"
+          } > keystore.properties
+          echo "SIGNED=true" >> "$GITHUB_ENV"
+
+      - name: 构建 APK
+        run: |
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleRelease
+
+      - name: 删掉签名钥匙（后面的步骤用不到，别留在工作区）
+        if: always()
+        run: rm -rf keystore keystore.properties
+
+      - name: 检查签名并改名
+        run: |
+          set -euo pipefail
+          APK=app/build/outputs/apk/release/app-release.apk
+          BT="$(ls -d "$ANDROID_HOME"/build-tools/* | sort -V | tail -1)"
+          "$BT/apksigner" verify --print-certs "$APK" | grep -E 'Signer #1 certificate (DN|SHA-256)'
+          ST="$(cut -d- -f1 app/src/main/assets/st-bundle.version)"
+          OUT="jiuguan-${VERSION_NAME}-st${ST}-arm64.apk"
+          cp "$APK" "$OUT"
+          ls -la "$OUT"
+          echo "APK_FILE=$OUT" >> "$GITHUB_ENV"
+          echo "ST_BUNDLED=$ST" >> "$GITHUB_ENV"
+
+      - name: 上传 APK（Artifacts）
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.APK_FILE }}
+          path: ${{ env.APK_FILE }}
+          compression-level: 0
+          retention-days: 30
+
+      - name: 发布 Release
+        if: github.event_name == 'workflow_dispatch' && github.event.inputs.release != 'false' && env.SIGNED == 'true'
+        # 第三方 action 按提交钉死（v2.6.2），免得 tag 被人改指向
+        uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65
+        with:
+          tag_name: v${{ env.VERSION_NAME }}
+          name: 酒馆 Jiuguan ${{ env.VERSION_NAME }}（SillyTavern ${{ env.ST_BUNDLED }}）
+          body: |
+            arm64 安卓手机直接下载下面的 APK 安装；装过旧版的直接覆盖安装，数据不会丢。从 Termux 搬数据见 README 的「从 Termux 搬家」。
+            For arm64 Android phones: download the APK below and install it. Installing over an older version keeps your data. To move your data from Termux, see "Moving from Termux in three steps" in README.en.md.
+
+            SillyTavern ${{ env.ST_BUNDLED }} · ${{ github.sha }}
+          files: ${{ env.APK_FILE }}

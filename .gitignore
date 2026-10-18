@@ -1,0 +1,27 @@
+.gradle/
+build/
+local.properties
+.idea/
+*.iml
+vendor/
+build-stage/
+app/src/main/jniLibs/
+app/src/main/assets/st-bundle.zip
+app/src/main/assets/st-bundle.version
+app/src/main/assets/runtime/
+app/src/main/assets/THIRD_PARTY_NOTICES.txt
+app/src/main/assets/seed-cache/
+tools/e2e/*.log
+tools/e2e/report*.jsonl
+app/src/main/assets/npm.zip
+app/src/main/assets/npm.version
+# 本地构建复制出来的安装包
+/*.apk
+# 签名钥匙只放在自己电脑上，绝不进仓库（谁拿到它就能做出覆盖安装你的 app 的包）
+keystore/
+keystore.properties
+*.keystore
+*.jks
+*.b64
+.kotlin/
+__pycache__/

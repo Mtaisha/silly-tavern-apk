@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">酒馆</string>
+    <string name="splash_title" translatable="false">Silly Tavern</string>
+    <string name="shortcut_settings">App 设置</string>
+    <string name="shortcut_log">酒馆日志</string>
+    <string name="source_url" translatable="false">https://github.com/Mtaisha/Silly-Tavern-apk</string>
+    <string name="license_notice">「酒馆」是在 TavernDroid（AGPL-3.0）基础上改出来的版本，同样以 GNU AGPL-3.0 授权。它运行原版 SillyTavern（AGPL-3.0，只附带源码仓库 patches/ 里列出的小修复），Node.js（MIT）和 git（GPL-2.0）来自 Termux 项目的编译版本。开屏上的花体字是 Pinyon Script（SIL OFL 1.1）。与 SillyTavern 官方团队无关。</string>
+</resources>

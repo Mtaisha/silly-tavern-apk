@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.Jiuguan" parent="android:Theme.Material.NoActionBar">
+        <item name="android:windowBackground">@color/background</item>
+        <item name="android:colorPrimary">@color/accent</item>
+        <item name="android:colorAccent">@color/accent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
+    </style>
+    <!-- 主界面：点开图标那一下的窗口底色和开屏一样，看不出切换（Android 12 以上的系统开屏见 values-v31）。 -->
+    <style name="Theme.Jiuguan.Launch" parent="Theme.Jiuguan">
+        <item name="android:windowBackground">@color/splash_bg</item>
+    </style>
+    <!-- 设置等界面：深胡桃木底、暖金色。开屏和图标用藏青底，和 design/ 里的原图一致。 -->
+    <color name="background">#15110E</color>
+    <color name="accent">#D9A55B</color>
+    <color name="splash_bg">#011025</color>
+    <color name="icon_bg">#021221</color>
+</resources>
