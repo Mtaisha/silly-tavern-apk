@@ -62,7 +62,7 @@ If you have been running SillyTavern in Termux, you can move everything over: ch
 2. Install Jiuguan, open it once and wait until the SillyTavern interface appears.
 3. ☰ → 酒馆 App 设置 (App settings) → 数据 (Data) → 导入数据包（zip）(Import data package) → pick that zip. The app first backs up its current data automatically, then imports and restarts SillyTavern.
 
-The export script is this repository's companion tool; its source is [`tools/termux-export.sh`](tools/termux-export.sh). It only packs files — it never reads, prints or uploads their contents. Its messages are in Chinese.
+The export script is this repository's companion tool; its source is [`tools/termux-export.sh`](tools/termux-export.sh). It reads file bytes to compress and verify them, but never parses, prints or uploads their contents. Its messages are in Chinese.
 The package contains your API keys, so don't share it or upload it anywhere. For more options, the package format and exactly what the import does, see [Importing data (details)](#importing-data-details).
 
 ---
@@ -135,8 +135,8 @@ It leaves `酒馆数据包-<date>.zip` in your phone's Download folder and takes
 
 - finds SillyTavern under `~`, including data moved elsewhere with `dataRoot` in config.yaml
 - requests storage permission on first use (tap Allow in the popup)
-- packs with the compression library that ships with SillyTavern (the one its "Download backup" uses), so you don't need to install zip or be online. Only very old versions without that library fall back to the zip command; if it's missing, run `pkg install zip` as prompted
-- reads the whole package back afterwards to make sure it's intact and no file is missing
+- packs with the compression library that ships with SillyTavern (the one its "Download backup" uses), so you don't need to install zip or be online. Only very old versions without that library fall back to zip/unzip; if either is missing, run `pkg install zip unzip` as prompted
+- reads every ZIP entry back, checking the entry count, uncompressed length and CRC-32; an unreadable source file or damaged entry prevents the package from being saved
 
 If SillyTavern lives somewhere else, or there are several of them under `~`, put the directory after `bash -s --`, along with any other options:
 
@@ -147,7 +147,7 @@ curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools
 - `-o <dir>`: put the zip somewhere else (default: the phone's Download folder)
 - `-y`: don't ask even if SillyTavern is still running; just pack
 
-The script only packs; it never reads, prints or uploads file contents.
+The script uses the file bytes only for compression and integrity verification; it never parses, prints or uploads their contents.
 
 If you'd rather not run the script, you can pack by hand inside the SillyTavern directory (this ignores `dataRoot`, so your data must be in the default `data/`):
 
@@ -278,7 +278,7 @@ The first line of App settings → 后台运行 shows whether it's currently unr
   - "Killed by the system, most likely low on memory": close some background apps, or raise the Node.js memory limit under 高级.
 - The interface looks wrong: App settings → 高级 → 清除前端编译缓存 (Clear the frontend build cache).
 - Program files are damaged: App settings → SillyTavern 本体 → 修复程序文件 (Repair program files) (your data isn't touched).
-- A build failed: GitHub repository → Actions → open the failed run and read the output of the step with the red cross.
+- A local build failed: start with the first failing step in the terminal. This repository's Actions only check public source; they do not build or sign APKs.
 - Going deeper (phone connected to a computer with USB debugging on): `adb logcat -s Jiuguan` shows the app's own log; after turning on 网页调试 (Web debugging) under App settings → 高级, open `chrome://inspect` in Chrome on the computer to debug the SillyTavern page.
 
 ---
@@ -299,48 +299,21 @@ The first line of App settings → 后台运行 shows whether it's currently unr
 | Upgrading SillyTavern | Only by waiting for a new APK | Upgrade inside the app (automatic backup → download → install dependencies on the phone → switch over); you can go back to the version bundled with the APK at any time |
 | Camera | Not supported | A "take photo" option when picking images |
 | Signing | Configure it yourself | Releases are signed with a fixed key, so new versions install over old ones without losing data |
-| Building | Built by hand on the author's Mac | One-click build with GitHub Actions |
+| Building | Built by hand on the author's Mac | Fixed local build, manually published after verification |
 
-It always runs the original SillyTavern (1.19.0 by default; the build scripts refuse versions below 1.18.0), with just one small bug-fix patch added (see `patches/README.md`).
+It starts from the original SillyTavern (1.19.0 by default; the build scripts refuse versions below 1.18.0), then applies the two small, dated changes listed under `patches/`: one fixes sending after a swipe race, and one prominently links to this modified build's source from the Web UI.
 
 ---
 
 ## Building it yourself
 
-### With GitHub Actions (no Android development environment needed)
+This repository does not automatically build or sign APKs on GitHub. Official APKs under Releases are built locally with a fixed key, checked for signature, package name, version and architecture, then uploaded manually. Actions only runs source checks that never receive signing material.
 
-1. Fork this repository (or push the code to the `main` / `master` branch of your own repository). On a fork, first enable workflows on the Actions page.
-2. A push starts a build automatically. You can also run one by hand: Actions → 构建 APK (Build APK) → Run workflow:
-   - `SillyTavern 版本` (SillyTavern version): `1.19.0` by default; `latest` uses the newest release on GitHub; anything below `1.18.0` fails without building.
-   - `构建完发一个 Release` (Publish a Release after building): checked by default (it only actually publishes once signing is set up, see below).
-3. After roughly 10–20 minutes the build is done; download the APK from Artifacts at the bottom of the run's page (it downloads as a zip; unzip it to get the APK).
+On Linux (or WSL on Windows), install JDK 17, the Android SDK (platform 35, build-tools 35), Node.js 22, `python3`, `git`, `patch`, `dpkg-deb` and `zip`. Then run `tools/fetch_termux.sh`, clone SillyTavern 1.19.0 and install its dependencies, run `tools/prepare.sh`, and finally run Gradle. `runtime/termux-packages.tsv` locks the exact runtime versions and SHA-256 values. Termux is a rolling repository; if an old binary has been removed, place the matching package in `vendor/debs/` or rebuild it from the pinned recipes recorded under `runtime/` instead of silently substituting another version.
 
-Signing: the repository contains no signing key. Without one, builds are signed with a temporary debug key that GitHub generates — the APK installs, but its signature is different on every build, so a new APK can't install over an old one, nor over the official version from this repository's Releases (Android reports a signature conflict; the only way out is uninstalling, which loses your data).
-To be able to install each new build over the last one, generate a key of your own (keytool ships with the JDK). Run this outside the repository folder, so the key can't be committed by accident:
+Before Gradle, set the China Standard Time version with `export VERSION_CODE=$(TZ=Asia/Shanghai date +%y%m%d%H)` and `export VERSION_NAME=1.0.$VERSION_CODE`; otherwise the default version is 1 and cannot install over an official release. Only `arm64-v8a` is built.
 
-```bash
-keytool -genkeypair -v -keystore my.keystore -alias jiuguan -keyalg RSA -keysize 4096 -validity 36500
-base64 -w0 my.keystore
-```
-
-keytool has you set just one password (typed twice); remember it. The second line prints the key as one long string of text; copy it for the next step.
-(On macOS, replace the second line with `base64 -i my.keystore`; in Windows PowerShell, with `[Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path my.keystore))) | Set-Clipboard`, which copies it straight to the clipboard.)
-
-Then add four secrets under the repository's Settings → Secrets and variables → Actions: `KEYSTORE_BASE64` (that long string), `KEYSTORE_PASSWORD` (the password keytool asked for), `KEY_ALIAS` (`jiuguan` above) and `KEY_PASSWORD` (the same password as `KEYSTORE_PASSWORD`). All four are needed; with only some of them the build fails.
-From then on, builds are signed with that key; run the workflow by hand with "Publish a Release" checked and a "酒馆 Jiuguan 1.0.N" release appears under Releases, ready to download on your phone.
-
-> Never commit the key file or its passwords, and never give them to anyone: whoever has them can build a package that installs over your app and reads its chats and API keys. A lost key can't be recovered either — the only way out is a new key and an uninstall.
-
-Each build's version number is the build time (China Standard Time) written as yyMMddHH. It only ever goes up, so a new APK can always install over an older one; two builds within the same hour share a version number and can still install over each other.
-
-> Build steps: `tools/fetch_termux.sh` downloads Node.js LTS, npm and git from the Termux package repository (arm64, each checked against its SHA256) → the chosen SillyTavern version is cloned and `npm ci` is run → `tools/prepare.sh` packages everything → Gradle builds and signs the APK. Only `arm64-v8a` is built.
-
-### On your own computer
-
-On Linux (or WSL on Windows), install JDK 17, the Android SDK (platform 35, build-tools 35), Node.js 22, `python3`, `git`, `patch`, `dpkg-deb` and `zip`, then run the steps in `.github/workflows/build.yml` in order.
-The step that sets the version number doesn't work outside GitHub Actions, so run `export VERSION_CODE=$(TZ=Asia/Shanghai date +%y%m%d%H)` before Gradle; otherwise the version number is 1 and the APK can't install over any other version.
-
-For fixed signing, put your key in a `keystore/` folder in the repository root and add a `keystore.properties` file there (both are already listed in `.gitignore`, so they won't be committed):
+The repository contains no signing key. Without `keystore.properties`, Gradle uses a debug signature suitable only for testing; it cannot install over the official Release build. For your own fixed signature, put your key in a `keystore/` folder in the repository root and add `keystore.properties` (both are already listed in `.gitignore`):
 
 ```properties
 storeFile=keystore/my.keystore
@@ -349,7 +322,9 @@ keyAlias=jiuguan
 keyPassword=the same password as above
 ```
 
-Without that file, builds use the debug key.
+> Never commit the key file or its passwords, and never give them to anyone: whoever has them can build a package that installs over your app and reads its chats and API keys. A lost key cannot be recovered; replacing it requires uninstalling the app.
+
+The full flow is: verify and prepare the locked Termux runtime → clone SillyTavern 1.19.0 and run `npm ci` → use `tools/prepare.sh` to verify licenses, apply patches and package it → build and sign with Gradle → create the source archive published beside the APK with `tools/build_source_bundle.py`.
 
 ---
 
@@ -391,7 +366,7 @@ After installing, go through these one by one; each item says what counts as a p
 ## Source layout
 
 ```
-.github/workflows/build.yml   GitHub Actions build
+.github/workflows/checks.yml  GitHub source tests and shell syntax checks only
 app/src/main/java/io/github/taverndroid/
   MainActivity.kt      fullscreen WebView, splash screen, system bars / safe areas / keyboard, file picking and camera, downloads
   Appearance.kt        custom splash picture, home screen shortcut icon from a picture, silhouette for the notification small icon
@@ -429,5 +404,8 @@ st/logs/         logs
 
 ## License
 
-GNU AGPL-3.0 (see `LICENSE`), the same as upstream TavernDroid and SillyTavern. Node.js (MIT) and git (GPL-2.0) are builds from the Termux project; their licenses are packaged in the APK and can be viewed under App settings → 关于 (About) → 开源许可 (Open-source licenses). The script lettering on the splash screen is Pinyon Script (SIL OFL 1.1).
+GNU AGPL-3.0 (see `LICENSE`), the same as upstream TavernDroid and SillyTavern. The Jiuguan project modified SillyTavern on 2026-10-18; [`patches/README.md`](patches/README.md) records each change and date. Both the native app and the LAN-accessible Web welcome panel link to this repository's source.
+
+The exact Termux binary versions, hashes, licenses, homepages and immutable build recipes are recorded under `runtime/`. A build fails if a license body is missing, a binary hash drifts, or a package contains only a “see another file” placeholder. Complete notices are packaged under App settings → 关于 (About) → 开源许可 (Open-source licenses). Every signed Release also publishes `jiuguan-*-corresponding-source.zip` beside the APK, containing the exact Jiuguan, SillyTavern, Git, less and libiconv sources plus the pinned Termux build scripts. The Pinyon Script splash lettering's SIL OFL 1.1 license is packaged too.
+
 This project is not affiliated with the SillyTavern team or the TavernDroid author.

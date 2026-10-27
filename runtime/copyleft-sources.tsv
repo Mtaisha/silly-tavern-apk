@@ -1,0 +1,5 @@
+# component	version	license	source_url	sha256	filename
+git	2.56.0	GPL-2.0	https://mirrors.kernel.org/pub/software/scm/git/git-2.56.0.tar.xz	26c56c296b38c0695b26fa95f475f1d01704d2d38e73465ca30b0b2f5dc789d3	git-2.56.0.tar.xz
+less	710	GPL-3.0-or-later AND custom	https://www.greenwoodsoftware.com/less/less-710.tar.gz	d1008fb78dcae1323ddab664bcb352a61f022b1b131bd8018548e021d975ec7a	less-710.tar.gz
+libiconv	1.19	LGPL-2.1-or-later AND GPL-3.0-or-later	https://mirrors.kernel.org/gnu/libiconv/libiconv-1.19.tar.gz	88dd96a8c0464eca144fc791ae60cd31cd8ee78321e67397e25fc095c4a19aa6	libiconv-1.19.tar.gz
+termux-packages	6be420e7536d1e228f3ffee2eb74ca2736a73fc1	build recipes	https://github.com/termux/termux-packages/archive/6be420e7536d1e228f3ffee2eb74ca2736a73fc1.tar.gz	2881627e9a8423fd3b60424a1b4b9bbb4fb6eb09cc6d4106e6cd5dad8700fccb	termux-packages-6be420e7536d1e228f3ffee2eb74ca2736a73fc1.tar.gz

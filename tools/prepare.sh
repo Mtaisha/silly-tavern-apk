@@ -1,5 +1,5 @@
 #!/bin/bash
-# 准备 Android 构建需要、但不放进 git 的东西（GitHub Actions 里自动运行，也可以在 Linux 上手动跑）：
+# 准备 Android 构建需要、但不放进 git 的东西（在 Linux 或 WSL 里手动运行）：
 #   1. app/src/main/jniLibs/arm64-v8a/   Node.js + git（Termux 编译版），改名成 lib*.so 并修补 ELF
 #   2. app/src/main/assets/runtime/       CA 证书、openssl.cnf、Node 预加载脚本
 #   3. app/src/main/assets/npm.zip        npm（只在 app 内升级 SillyTavern 时用）
@@ -14,10 +14,16 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 ST_SRC="${ST_SRC:-$ROOT/vendor/SillyTavern}"
 VENDOR="$ROOT/vendor"
-STAGE="$ROOT/build-stage"
 JNI="$ROOT/app/src/main/jniLibs/arm64-v8a"
 ASSETS="$ROOT/app/src/main/assets"
 PREFIX_REL="data/data/com.termux/files/usr"
+
+# 在 Linux 临时文件系统中裁剪依赖，避免 WSL 对 Windows 盘执行两轮海量小文件写入。
+STAGE="$(mktemp -d "${TMPDIR:-/tmp}/jiuguan-stage.XXXXXX")"
+cleanup_stage() {
+    rm -rf -- "$STAGE"
+}
+trap cleanup_stage EXIT
 
 echo "== 解开 Termux 软件包"
 rm -rf "$VENDOR/root"; mkdir -p "$VENDOR/root"
@@ -69,34 +75,11 @@ for name in command-r command-a qwen2 nemo deepseek; do
     fi
 done
 
-echo "== 第三方许可"
-NOTICES="$ASSETS/THIRD_PARTY_NOTICES.txt"
-cp "$VENDOR/debs/list.tsv" "$ROOT/runtime/termux-packages.tsv"
-{
-    echo "「酒馆」打包了下面这些第三方软件。"
-    echo "Termux 编译的程序来自 https://packages-cf.termux.dev/apt/termux-main（编译脚本："
-    echo "https://github.com/termux/termux-packages）。具体版本和 SHA-256 见源码里的 runtime/termux-packages.tsv。"
-    echo
-    while IFS=$'\t' read -r name file _sha; do
-        echo "================================================================================"
-        echo "$name  ($(basename "$file"))"
-        echo "================================================================================"
-        for f in "$U/share/doc/$name"/{copyright,LICENSE,LICENCE.md,COPYING}; do
-            [ -f "$f" ] && { cat "$f"; echo; break; }
-        done
-    done < "$VENDOR/debs/list.tsv"
-    echo "================================================================================"
-    echo "SillyTavern (AGPL-3.0) - https://github.com/SillyTavern/SillyTavern"
-    echo "它自己依赖的许可证在 st-bundle.zip 里（node_modules/*/LICENSE*）。"
-    echo "================================================================================"
-    echo "TavernDroid (AGPL-3.0) - https://github.com/S0ul-Sh3ll/TavernDroid"
-} > "$NOTICES"
-
 echo "== 打包 SillyTavern（$ST_SRC）"
-rm -rf "$STAGE"; mkdir -p "$STAGE/st"
+mkdir -p "$STAGE/st"
 git -C "$ST_SRC" archive HEAD | tar -x -C "$STAGE/st"
 ST_REV="$(git -C "$ST_SRC" rev-parse --short HEAD)"
-# patches/ 里的小修复：能打上才打（只针对特定版本写的，换了版本打不上就跳过）
+# patches/ 里的修改属于发布合规与产品行为的一部分；任何一份失配都必须停止构建。
 PATCH_ID=""
 for patch in "$ROOT"/patches/*.patch; do
     [ -f "$patch" ] || continue
@@ -105,11 +88,43 @@ for patch in "$ROOT"/patches/*.patch; do
         (cd "$STAGE/st" && patch -p1 --quiet --forward < "$patch")
         PATCH_ID="$PATCH_ID$(sha256sum "$patch" | cut -c1-4)"
     else
-        echo "   跳过 $(basename "$patch")（和这个版本对不上）"
+        echo "错误：补丁 $(basename "$patch") 无法应用到 SillyTavern $ST_REV；停止构建。" >&2
+        exit 1
     fi
 done
 if [ -n "$PATCH_ID" ]; then ST_REV="$ST_REV+p$PATCH_ID"; fi
 ST_VER="$(python3 -I -c 'import json,sys;print(json.load(open(sys.argv[1]))["version"])' "$STAGE/st/package.json")"
+
+echo "== 第三方许可"
+NOTICES="$ASSETS/THIRD_PARTY_NOTICES.txt"
+cmp -s "$VENDOR/debs/list.tsv" "$ROOT/runtime/termux-packages.tsv" || {
+    echo "vendor/debs/list.tsv 和已审查的 runtime/termux-packages.tsv 不一致；拒绝生成许可不明的 APK" >&2
+    exit 1
+}
+python3 -I "$ROOT/tools/build_third_party_notices.py" \
+    --packages "$VENDOR/debs/list.tsv" \
+    --metadata "$ROOT/runtime/termux-package-metadata.tsv" \
+    --fallbacks "$ROOT/runtime/termux-license-fallbacks.tsv" \
+    --recipe-commit "$ROOT/runtime/termux-recipes.commit" \
+    --termux-root "$U" \
+    --cache "$VENDOR/licenses" \
+    --output "$NOTICES"
+{
+    echo
+    echo "================================================================================"
+    echo "SillyTavern $ST_VER ($ST_REV) and Jiuguan/TavernDroid - GNU AGPL-3.0"
+    echo "================================================================================"
+    echo "Jiuguan modified SillyTavern on 2026-10-18; the exact changes are in patches/."
+    echo "All users, including people connecting through LAN access, can obtain the corresponding source at:"
+    echo "https://github.com/Mtaisha/Silly-Tavern-apk"
+    echo "Every signed Release publishes a jiuguan-*-corresponding-source.zip beside the APK."
+    echo "Upstream SillyTavern: https://github.com/SillyTavern/SillyTavern"
+    echo "Upstream TavernDroid: https://github.com/S0ul-Sh3ll/TavernDroid"
+    echo "JavaScript dependency license files remain inside st-bundle.zip under node_modules/*/LICENSE*."
+    echo
+    cat "$ROOT/LICENSE"
+} >> "$NOTICES"
+
 # 生产依赖：直接用仓库里装好的 node_modules，再离线删掉开发用的包
 cp -a "$ST_SRC/node_modules" "$STAGE/st/"
 (cd "$STAGE/st" && npm prune --omit=dev --no-audit --no-fund --offline >/dev/null)

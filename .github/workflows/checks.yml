@@ -1,0 +1,26 @@
+# 这里只检查公开源码，不在 GitHub 上构建或签名 APK。
+name: 源码检查
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - name: 取代码
+        # actions/checkout v4.4.0
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+
+      - name: Python 测试
+        run: python3 -m unittest discover -s tools/tests -p 'test_*.py'
+
+      - name: Shell 语法
+        run: bash -n tools/*.sh tools/tests/*.sh

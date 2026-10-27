@@ -5,7 +5,7 @@ plugins {
     id("org.jetbrains.kotlin.android")
 }
 
-// 构建时传入递增的版本号（构建时间的「年月日时」，GitHub Actions 和本地构建一样），保证每次新包都能直接覆盖安装。
+// 构建时传入递增的版本号（构建时间的「年月日时」），保证每次新包都能直接覆盖安装。
 val ciVersionCode = (System.getenv("VERSION_CODE") ?: "").toIntOrNull() ?: 1
 val ciVersionName = System.getenv("VERSION_NAME")?.takeIf { it.isNotBlank() } ?: "1.0.$ciVersionCode"
 

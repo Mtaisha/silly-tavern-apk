@@ -17,6 +17,7 @@ app/src/main/assets/npm.zip
 app/src/main/assets/npm.version
 # 本地构建复制出来的安装包
 /*.apk
+/*-corresponding-source.zip
 # 签名钥匙只放在自己电脑上，绝不进仓库（谁拿到它就能做出覆盖安装你的 app 的包）
 keystore/
 keystore.properties

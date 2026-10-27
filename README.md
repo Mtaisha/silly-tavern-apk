@@ -60,7 +60,7 @@
 2. 装好酒馆，打开一次，等它进到 SillyTavern 界面。
 3. ☰ → 酒馆 App 设置 → 数据 → 导入数据包（zip）→ 选刚才那个 zip。app 会先自动备份现有数据，再导入，然后重启酒馆。
 
-导出脚本是本仓库的配套工具，源码就是 [`tools/termux-export.sh`](tools/termux-export.sh)。它只打包，不读取、不打印、不上传任何文件内容。
+导出脚本是本仓库的配套工具，源码就是 [`tools/termux-export.sh`](tools/termux-export.sh)。它会读取文件字节来压缩和校验，但不会解析、打印或上传内容。
 数据包里有你的 API key，不要发给别人或传到网上。脚本的更多用法、数据包格式、导入时具体做了什么，见 [导入数据（详细说明）](#导入数据详细说明)。
 
 ---
@@ -133,8 +133,8 @@ curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools
 
 - 在 `~` 下面找到 SillyTavern；config.yaml 里改过 dataRoot 的，也能找到数据
 - 第一次用时申请存储权限，弹窗点「允许」就行
-- 用 SillyTavern 自带的压缩库打包（就是它「下载备份」用的那个），不用装 zip，也不用联网。特别老、没带这个库的版本才会改用 zip 命令，没装的话按提示 `pkg install zip`
-- 打完把整个包重新读一遍，确认没坏、一个文件不少
+- 用 SillyTavern 自带的压缩库打包（就是它「下载备份」用的那个），不用装 zip，也不用联网。特别老、没带这个库的版本才会改用 zip/unzip 命令，没装的话按提示 `pkg install zip unzip`
+- 打完逐条读回 zip，核对条目数、解压后长度和 CRC-32；有文件读不到或任一条损坏就不保存数据包
 
 装在别的地方，或者 `~` 下面有好几个 SillyTavern 时，把目录写在 `bash -s --` 后面，其他参数也写在那里：
 
@@ -145,7 +145,7 @@ curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools
 - `-o 目录`：zip 放到别处（默认是手机的「下载」）
 - `-y`：SillyTavern 还开着也不提问，直接打包
 
-脚本只打包，不读取、不打印、不上传任何文件内容。
+脚本只把读取到的文件字节用于压缩和完整性校验，不解析、不打印、不上传内容。
 
 不想跑脚本的话，也可以在 SillyTavern 目录里手动打包（这样不认 dataRoot，数据必须在默认的 `data/` 里）：
 
@@ -276,7 +276,7 @@ App 设置 → 后台运行 第一行会显示当前是否已经「不限制」�
   - 提示「被系统结束，多半是手机内存不够了」：关掉一些后台 app，或在 高级 里调大 Node.js 内存上限。
 - 界面显示异常：App 设置 → 高级 → 清除前端编译缓存。
 - 程序文件坏了：App 设置 → SillyTavern 本体 → 修复程序文件（不动数据）。
-- 构建失败：GitHub 仓库 → Actions → 点开失败的那次运行，看红叉那一步的输出。
+- 自己构建失败：看终端里最先报错的那一步；仓库的 Actions 只检查公开源码，不构建或签名 APK。
 - 更深入（电脑连手机、开了 USB 调试）：`adb logcat -s Jiuguan` 看 app 自己的日志；App 设置 → 高级 打开「网页调试」后，电脑 Chrome 打开 `chrome://inspect` 可以调试酒馆页面。
 
 ---
@@ -297,48 +297,21 @@ App 设置 → 后台运行 第一行会显示当前是否已经「不限制」�
 | 升级 SillyTavern | 只能等新 APK | app 里直接升级（自动备份 → 下载 → 手机上装依赖 → 切换），可以随时退回安装包自带版本 |
 | 拍照 | 不支持 | 选图片时多一个「拍照」 |
 | 签名 | 自己配 | 发布版用固定签名，新版本直接覆盖安装、不丢数据 |
-| 构建 | 作者在 Mac 上手动构建 | GitHub Actions 一键构建 |
+| 构建 | 作者在 Mac 上手动构建 | 本机固定流程构建、验收后手动发布 |
 
-跑的始终是原版 SillyTavern（默认 1.19.0，低于 1.18.0 的版本构建脚本会拒绝），只额外打了一个修 bug 的小补丁（见 `patches/README.md`）。
+跑的是原版 SillyTavern（默认 1.19.0，低于 1.18.0 的版本构建脚本会拒绝），再应用仓库 `patches/` 里列明日期的两个小改动：一个修复滑动后无法发送的问题，一个在 Web 界面显著提供本修改版的源码入口。
 
 ---
 
 ## 自己构建
 
-### 用 GitHub Actions（不用自己装 Android 开发环境）
+本仓库不会在 GitHub 上自动构建或签名 APK。Releases 里的正式 APK 在本机用固定钥匙构建，验完签名、包名、版本和架构后手动上传；仓库 Actions 只跑不接触签名材料的源码检查。
 
-1. Fork 这个仓库（或者把代码推到你自己的仓库的 `main` / `master` 分支）。Fork 过来的仓库要先到 Actions 页面点一下启用工作流。
-2. 推送后会自动开始构建。也可以在仓库页面 Actions → 构建 APK → Run workflow 手动运行：
-   - `SillyTavern 版本`：默认 `1.19.0`；填 `latest` 就用 GitHub 上最新的正式版；低于 `1.18.0` 会直接报错不构建。
-   - `构建完发一个 Release`：默认勾上（配好签名才会真的发，见下）。
-3. 大约 10～20 分钟后构建完成，在这次运行页面最下面的 Artifacts 里下载（下载下来是个 zip，解压出 APK）。
+Linux（或 Windows 的 WSL）上装好 JDK 17、Android SDK（platform 35、build-tools 35）、Node.js 22、`python3`、`git`、`patch`、`dpkg-deb`、`zip`，然后依次运行 `tools/fetch_termux.sh`、克隆并安装 SillyTavern 1.19.0 的依赖、`tools/prepare.sh`，最后运行 Gradle。`runtime/termux-packages.tsv` 锁定了运行环境的准确版本和 SHA-256；Termux 是滚动仓库，旧二进制被移走时，需要把匹配哈希的包放进 `vendor/debs/`，或按 `runtime/` 记录的固定配方从源码重建，不能悄悄换成别的版本。
 
-签名：仓库里没有签名钥匙。不配的话用的是 GitHub 临时生成的调试签名——能装，但每次构建签名都不一样，新包不能覆盖旧包，也不能覆盖本仓库 Releases 里的正式版（安卓会提示签名冲突，只能卸载重装，数据会丢）。
-想每次都能覆盖安装，就生成一把你自己的钥匙（JDK 自带 keytool）。在仓库文件夹外面运行，免得一不小心提交上去：
+运行 Gradle 前先设置北京时间版本号：`export VERSION_CODE=$(TZ=Asia/Shanghai date +%y%m%d%H)` 和 `export VERSION_NAME=1.0.$VERSION_CODE`，否则默认版本号是 1，装不上去覆盖正式版。只构建 `arm64-v8a`。
 
-```bash
-keytool -genkeypair -v -keystore my.keystore -alias jiuguan -keyalg RSA -keysize 4096 -validity 36500
-base64 -w0 my.keystore
-```
-
-keytool 只要设一个密码（输两遍），记住它。第二行把钥匙转成一长串文字打印出来，复制下来备用。
-（macOS 上第二行换成 `base64 -i my.keystore`；Windows PowerShell 里换成 `[Convert]::ToBase64String([IO.File]::ReadAllBytes((Resolve-Path my.keystore))) | Set-Clipboard`，直接复制到剪贴板。）
-
-然后在仓库 Settings → Secrets and variables → Actions 里加四个 Secret：`KEYSTORE_BASE64`（刚才那一长串）、`KEYSTORE_PASSWORD`（keytool 问的密码）、`KEY_ALIAS`（上面是 `jiuguan`）、`KEY_PASSWORD`（填跟 `KEYSTORE_PASSWORD` 一样的密码）。四项要配齐，只配一部分构建会报错。
-配好以后构建就用这把钥匙签；手动运行并勾上「构建完发一个 Release」，Releases 里会多一个「酒馆 Jiuguan 1.0.N」，手机上点开直接下载 APK。
-
-> 钥匙文件和密码千万别提交进仓库，也别发给别人：谁拿到它，谁就能做出能覆盖安装你的 app 的包，读到里面的聊天和 API key。钥匙丢了也没法补，只能换新钥匙、卸载重装。
-
-每次构建的版本号是构建时间（北京时间）的「年月日时」，只增不减，所以新 APK 总能覆盖旧版；同一个小时里构建两次，版本号相同，也能覆盖安装。
-
-> 构建过程：`tools/fetch_termux.sh` 从 Termux 软件源下载 Node.js LTS、npm 和 git（arm64，逐个校验 SHA256）→ 克隆 SillyTavern 指定版本并 `npm ci` → `tools/prepare.sh` 打包 → Gradle 构建并签名。只构建 `arm64-v8a`。
-
-### 在自己电脑上构建
-
-Linux（或 Windows 的 WSL）上装好 JDK 17、Android SDK（platform 35、build-tools 35）、Node.js 22、`python3`、`git`、`patch`、`dpkg-deb`、`zip`，然后按 `.github/workflows/build.yml` 里的步骤依次运行即可。
-其中定版本号那一步在本地不起作用，运行 Gradle 前先 `export VERSION_CODE=$(TZ=Asia/Shanghai date +%y%m%d%H)`，不然版本号是 1，装不上去覆盖别的版本。
-
-要固定签名的话，把钥匙放进仓库根目录的 `keystore/`，再放一个 `keystore.properties`（这两个都已经写进 `.gitignore`，不会被提交）：
+仓库里没有签名钥匙。没有 `keystore.properties` 时会使用调试签名，只适合测试，不能覆盖 Releases 里的正式版。要使用自己的固定签名，把钥匙放进仓库根目录的 `keystore/`，再放一个 `keystore.properties`（两者都已写进 `.gitignore`）：
 
 ```properties
 storeFile=keystore/my.keystore
@@ -347,7 +320,9 @@ keyAlias=jiuguan
 keyPassword=跟上面一样的密码
 ```
 
-没有这个文件就用调试签名。
+> 钥匙文件和密码千万别提交进仓库，也别发给别人：谁拿到它，谁就能做出能覆盖安装你的 app 的包，读到里面的聊天和 API key。钥匙丢了也没法补，只能换新钥匙、卸载重装。
+
+完整流程是：校验并准备锁定的 Termux 运行环境 → 克隆 SillyTavern 1.19.0 并 `npm ci` → `tools/prepare.sh` 校验许可、应用补丁并打包 → Gradle 构建和签名 → `tools/build_source_bundle.py` 生成与 APK 同时发布的对应源码包。
 
 ---
 
@@ -389,7 +364,7 @@ keyPassword=跟上面一样的密码
 ## 源码结构
 
 ```
-.github/workflows/build.yml   GitHub Actions 构建
+.github/workflows/checks.yml  GitHub 上只跑源码测试和 Shell 语法检查
 app/src/main/java/io/github/taverndroid/
   MainActivity.kt      全屏 WebView、开屏、系统栏 / 安全区 / 键盘、文件选择和拍照、下载
   Appearance.kt        自定义开屏图、用图片建桌面快捷图标、通知小图标的剪影
@@ -427,5 +402,8 @@ st/logs/         日志
 
 ## 许可
 
-GNU AGPL-3.0（见 `LICENSE`），与上游 TavernDroid 和 SillyTavern 相同。Node.js（MIT）和 git（GPL-2.0）来自 Termux 项目的编译版本，各自的许可证随 APK 打包，可以在 App 设置 → 关于 → 开源许可 查看。开屏上的花体字是 Pinyon Script（SIL OFL 1.1）。
+GNU AGPL-3.0（见 `LICENSE`），与上游 TavernDroid 和 SillyTavern 相同。酒馆项目在 2026-10-18 修改了 SillyTavern，改动及日期见 [`patches/README.md`](patches/README.md)；App 和经局域网打开的 Web 首页都提供本仓库源码入口。
+
+所有 Termux 二进制的固定版本、哈希、许可证、主页和不可变构建配方都记录在 `runtime/`。构建会在任何许可正文缺失、包哈希漂移或只剩“见另一个文件”的占位说明时直接失败。完整正文随 APK 放进 App 设置 → 关于 → 开源许可；每个签名 Release 都在 APK 旁发布 `jiuguan-*-corresponding-source.zip`，里面包含本项目、SillyTavern、Git、less、libiconv 的准确源码及固定的 Termux 构建脚本。开屏花体字 Pinyon Script 的 SIL OFL 1.1 也随 APK 打包。
+
 本项目与 SillyTavern 官方团队、TavernDroid 作者无关。

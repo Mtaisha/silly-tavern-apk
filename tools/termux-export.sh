@@ -22,7 +22,7 @@
 # plugins/（服务端插件）、public/scripts/extensions/third-party/（全局扩展）。符号链接按真实文件打包。
 # 不打包能自动重建的缓存：data/_webpack、data/_uploads、data/_cache。
 #
-# 本脚本只打包，不读取、不打印、不上传任何文件内容（包括 secrets.json 里的 API key）。
+# 本脚本会读取文件字节来压缩和校验，但不会解析、打印或上传内容（包括 secrets.json 里的 API key）。
 set -euo pipefail
 
 say()  { printf '%s\n' "$*"; }
@@ -203,7 +203,7 @@ const fail = (error) => {
     process.stderr.write(`\n打包失败：${error && error.message ? error.message : error}\n`);
     process.exit(1);
 };
-archive.on('warning', (error) => skipped.push(error.path || error.message));
+archive.on('warning', fail);
 archive.on('error', fail);
 archive.on('entry', () => {
     added++;
@@ -217,19 +217,59 @@ output.on('error', fail);
 output.on('close', () => {
     process.stderr.write('\n');
     if (skipped.length) {
-        process.stderr.write(`有 ${skipped.length} 项读不到，跳过了（多半是失效的快捷链接）：\n`);
+        process.stderr.write(`有 ${skipped.length} 项读不到（多半是失效的快捷链接）：\n`);
         for (const s of skipped.slice(0, 20)) process.stderr.write(`  ${s}\n`);
         if (skipped.length > 20) process.stderr.write('  …\n');
+        return fail(new Error('有项目未能加入压缩包；为避免生成缺数据的备份，已经停止'));
     }
-    // 打完再整个读一遍目录，确认 zip 没坏、条目一个不少
+    // 打完后逐条读回数据，核对未压缩长度和 CRC-32，确认 zip 没坏、条目一个不少
     let yauzl;
-    try { yauzl = require(path.join(stDir, 'node_modules', 'yauzl')); } catch { return; }
+    try { yauzl = require(path.join(stDir, 'node_modules', 'yauzl')); }
+    catch (error) { return fail(new Error(`没法加载 zip 校验库 yauzl：${error.message}`)); }
+    const crcTable = new Uint32Array(256);
+    for (let n = 0; n < 256; n++) {
+        let value = n;
+        for (let bit = 0; bit < 8; bit++) value = (value >>> 1) ^ ((value & 1) ? 0xedb88320 : 0);
+        crcTable[n] = value >>> 0;
+    }
+    const updateCrc = (crc, chunk) => {
+        for (const byte of chunk) crc = crcTable[(crc ^ byte) & 0xff] ^ (crc >>> 8);
+        return crc >>> 0;
+    };
     yauzl.open(outFile, { lazyEntries: true }, (error, zip) => {
         if (error) return fail(error);
-        let count = 0;
-        zip.on('entry', () => { count++; zip.readEntry(); });
+        let verified = 0;
+        zip.on('entry', (entry) => {
+            if (entry.fileName.endsWith('/')) {
+                verified++;
+                zip.readEntry();
+                return;
+            }
+            zip.openReadStream(entry, (streamError, stream) => {
+                if (streamError) return fail(streamError);
+                let bytes = 0;
+                let crc = 0xffffffff;
+                stream.on('data', (chunk) => {
+                    bytes += chunk.length;
+                    crc = updateCrc(crc, chunk);
+                });
+                stream.on('error', fail);
+                stream.on('end', () => {
+                    crc = (crc ^ 0xffffffff) >>> 0;
+                    if (bytes !== entry.uncompressedSize) {
+                        return fail(new Error(`${entry.fileName} 解压后是 ${bytes} 字节，应该是 ${entry.uncompressedSize} 字节`));
+                    }
+                    if (crc !== (entry.crc32 >>> 0)) {
+                        return fail(new Error(`${entry.fileName} 的 CRC-32 不对，压缩包内容已损坏`));
+                    }
+                    verified++;
+                    zip.readEntry();
+                });
+            });
+        });
         zip.on('end', () => {
-            if (count !== added) fail(new Error(`zip 里有 ${count} 项，应该有 ${added} 项`));
+            if (verified !== added) return fail(new Error(`zip 里验证了 ${verified} 项，应该有 ${added} 项`));
+            process.stderr.write(`校验完成：${verified} 项都能完整读回，CRC-32 正确。\n`);
         });
         zip.on('error', fail);
         zip.readEntry();
@@ -259,23 +299,39 @@ pack_with_zip() {
     fi
     say "正在打包（用 zip 命令）…"
     # 不带 -y：符号链接按真实文件打包。LC_ALL=C.UTF-8：让 zip 给中文文件名打上 UTF-8 标记
-    (cd "$stage" && LC_ALL=C.UTF-8 zip -r -q "$PART" "${items[@]}" -x 'data/_webpack/*' -x 'data/_uploads/*' -x 'data/_cache/*')
+    if ! (cd "$stage" && LC_ALL=C.UTF-8 zip -r -q "$PART" "${items[@]}" -x 'data/_webpack/*' -x 'data/_uploads/*' -x 'data/_cache/*'); then
+        rm -rf "$stage"
+        die "zip 打包失败"
+    fi
     rm -rf "$stage"
+    say "正在逐条读回并校验压缩包…"
+    unzip -tqq "$PART" >/dev/null || die "zip 校验失败，压缩包没有保存"
 }
 
 PACKER="${JIUGUAN_PACKER:-auto}"
 if [ "$PACKER" = auto ]; then
-    if command -v node >/dev/null 2>&1 && [ -f "$ST/node_modules/archiver/package.json" ]; then
+    if command -v node >/dev/null 2>&1 &&
+        [ -f "$ST/node_modules/archiver/package.json" ] &&
+        [ -f "$ST/node_modules/yauzl/package.json" ]; then
         PACKER=node
-    elif command -v zip >/dev/null 2>&1; then
+    elif command -v zip >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1; then
         PACKER=zip
     else
-        die "这个 SillyTavern 太老，没有自带压缩库，Termux 里也没装 zip。先运行 pkg install zip 再试一次。"
+        die "这个 SillyTavern 太老，没有自带压缩库，Termux 里也没装 zip/unzip。先运行 pkg install zip unzip 再试一次。"
     fi
 fi
 case "$PACKER" in
-    node) pack_with_node ;;
-    zip) command -v zip >/dev/null 2>&1 || die "没装 zip：pkg install zip"; pack_with_zip ;;
+    node)
+        command -v node >/dev/null 2>&1 &&
+            [ -f "$ST/node_modules/archiver/package.json" ] &&
+            [ -f "$ST/node_modules/yauzl/package.json" ] ||
+            die "缺少完整的 Node 压缩/校验库（archiver、yauzl）"
+        pack_with_node
+        ;;
+    zip)
+        command -v zip >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1 || die "缺少 zip/unzip：pkg install zip unzip"
+        pack_with_zip
+        ;;
     *) die "JIUGUAN_PACKER 只能是 node 或 zip" ;;
 esac
 mv "$PART" "$OUT"

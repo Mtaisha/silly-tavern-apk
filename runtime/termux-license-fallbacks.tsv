@@ -1,0 +1,11 @@
+# package	filename	url	sha256
+ca-certificates	MPL-2.0.txt	https://raw.githubusercontent.com/spdx/license-list-data/v3.27.0/text/MPL-2.0.txt	66a3107d5ad6a058aab753eaac2047ccb2ed0e39465dd0fe5844da3e300d5172
+git	COPYING	https://raw.githubusercontent.com/git/git/v2.56.0/COPYING	5b2198d1645f767585e8a88ac0499b04472164c0d2da22e75ecf97ef443ab32e
+libc++	LICENSE.TXT	https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-22.1.0/libcxx/LICENSE.TXT	539dd7aed86e8a4f12cbdd0e6c50c189c7d74847e4fecc64ce2c6ee3a01da38b
+libiconv	LGPL-2.1-only.txt	https://raw.githubusercontent.com/spdx/license-list-data/v3.27.0/text/LGPL-2.1-only.txt	5749785c8bdefafcb5d798270ed0a967036fe2ca63dcedade1627565dfef81d2
+libiconv	GPL-3.0-only.txt	https://raw.githubusercontent.com/spdx/license-list-data/v3.27.0/text/GPL-3.0-only.txt	fb981668c18a279e285fc4d83fba1e836cc84dd4daa73c9697d3cfd2d8aca6e0
+libicu	LICENSE	https://raw.githubusercontent.com/unicode-org/icu/release-78.3/LICENSE	e55522d81edc687a341a4411e0776e54ca654e90147f354a90458aaced4116af
+libsqlite	LICENSE.md	https://raw.githubusercontent.com/sqlite/sqlite/version-3.54.1/LICENSE.md	ee6af51062b30d532991face5164136ae6f84e265ecf8abe89dc69dac45ca1e7
+npm	LICENSE	https://raw.githubusercontent.com/npm/cli/v11.21.1/LICENSE	7610d223851f421d315df5e77974f1c68a04b97e02060e5bbbcf13d95e3ca257
+openssl	LICENSE.txt	https://raw.githubusercontent.com/openssl/openssl/openssl-3.6.5/LICENSE.txt	7d5450cb2d142651b8afa315b5f238efc805dad827d91ba367d8516bc9d49e7a
+pcre2	LICENCE.md	https://raw.githubusercontent.com/PCRE2Project/pcre2/pcre2-10.49/LICENCE.md	197d8a73ffee0d6b09adba2f9c677b5f5aede24edf89258a68e48248d010d811
