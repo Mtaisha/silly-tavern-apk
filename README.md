@@ -1,24 +1,68 @@
 <p align="center"><img src="docs/icon.png" width="96" alt=""></p>
 
-# 酒馆
+# SillyTavern APK（酒馆）
 
 中文 | [English](README.en.md)
 
-把原版 SillyTavern 整个装进一个安卓 app：自带 Node.js 和 git，不需要 Termux，点开图标就能用。
-适用于 arm64 安卓手机（Android 10 及以上），界面全中文，针对 vivo / OriginOS 的省电策略做过适配。
-
-基于 [TavernDroid](https://github.com/S0ul-Sh3ll/TavernDroid)（AGPL-3.0）修改。选它而不是 ST-android 或 SillyTavern-Android 的原因：
-它已经解决了最难的部分（不靠 Termux 跑原版 Node + git，第三方扩展和服务端插件都能用，连 vivo 冻结后台网页的问题都处理过），
-另外两个一个是跳到外部浏览器打开，一个只是网页壳、还得靠 Termux。
+无需部署，不需要 Termux。直接下载 APK，安装后点开就是完整的 SillyTavern；Node.js 和 git 都已经装在 app 里。
+适用于 arm64 安卓手机（Android 10 及以上），界面全中文，并针对 vivo / OriginOS 的省电策略做过适配。
 
 ---
 
-## 目录
+## 直接下载 APK
 
-- [下载和更新](#下载和更新)
-- [从 Termux 搬家：三步](#从-termux-搬家三步)
-- [怎么安装](#怎么安装)
-- [日常使用：跟普通 app 一样](#日常使用跟普通-app-一样)
+- 下载：到 [Releases](https://github.com/Mtaisha/silly-tavern-apk/releases/latest) 下载最新的 `jiuguan-<版本>-st<SillyTavern 版本>-arm64.apk`，用手机浏览器打开就能直接下。
+- 更新 app：新版本都发在 [Releases](https://github.com/Mtaisha/silly-tavern-apk/releases)。下载新 APK 直接覆盖安装，不用卸载，聊天、角色、设置都还在。
+  app 里 ☰ → 酒馆 App 设置 → 关于 → 源代码和新版本，也能跳到这个仓库。
+- 更新 SillyTavern 本体：不用等新 APK，app 里就能升级，见 [升级 SillyTavern](#升级-sillytavern)。
+- 只有 arm64-v8a 版本（这几年的安卓手机基本都是）。
+
+---
+
+## 从 Termux 导出并导入：三步
+
+原来在 Termux 里用 SillyTavern 的，数据可以整个搬进来：角色、聊天、世界书、预设、设置、API key、扩展和服务端插件都会带上。
+
+1. 在 Termux 里粘贴这一行、回车（最好先按 Ctrl+C 关掉正在运行的 SillyTavern）：
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/Mtaisha/silly-tavern-apk/main/tools/termux-export.sh | bash
+   ```
+
+   第一次会弹存储权限，点「允许」。跑完手机的「下载」文件夹里会多一个 `酒馆数据包-日期.zip`。
+2. 装好酒馆，打开一次，等它进到 SillyTavern 界面。
+3. ☰ → 酒馆 App 设置 → 数据 → 导入数据包（zip）→ 选刚才那个 zip。app 会先自动备份现有数据，再导入，然后重启酒馆。
+
+导出脚本是本仓库的配套工具，源码就是 [`tools/termux-export.sh`](tools/termux-export.sh)。它会读取文件字节来压缩和校验，但不会解析、打印或上传内容。
+数据包里有你的 API key，不要发给别人或传到网上。脚本的更多用法、数据包格式、导入时具体做了什么，见 [导入数据（详细说明）](#导入数据详细说明)。
+
+---
+
+## 安装和使用说明
+
+### 安装
+
+1. 手机浏览器打开 [Releases](https://github.com/Mtaisha/silly-tavern-apk/releases/latest)，下载 APK。
+2. 点开 APK。第一次会提示「禁止安装未知来源应用」：点「设置」，给你用的浏览器或文件管理打开「允许安装未知应用」，返回继续安装。
+   - vivo / OriginOS 可能会弹「安全检测」或要求输入 vivo 账号密码，选「继续安装」/ 输密码即可。
+3. 以后有新版本：直接装新 APK 覆盖，不用卸载，数据都在。
+
+> ⚠️ 不要卸载再装——卸载会把 app 里的数据一起删掉。要换手机或重装前，先 [导出数据](#导出数据)。
+
+### 日常使用：跟普通 app 一样
+
+- 点开图标才启动酒馆后台。还没起来时显示开屏（开屏图、花体的「Silly Tavern」和一条细进度条）。第一次打开要解压程序，会久一点（一两分钟）。
+- 切到别的 app（比如去点个外卖）：酒馆继续在后台跑，通知栏有一个「酒馆 · 营业中」的常驻通知。回来直接接着用，正在生成的回复也会继续。
+- 在最近任务里把酒馆划掉：酒馆的 Node 进程、前台服务、唤醒锁全部结束，app 进程也退出，不留任何后台。通知栏的「退出」按钮、App 设置里的「退出」效果一样。
+- 按返回键：先关掉酒馆里打开的面板 / 弹窗；没有可关的就把 app 退到后台（不会停止）。
+- App 设置在哪：酒馆左下角 ☰ 菜单 → 酒馆 App 设置；或者长按桌面图标 → App 设置。
+
+酒馆只在手机本机 `127.0.0.1` 上监听，默认不对局域网开放（App 设置 → 高级 里可以手动打开）。
+
+---
+
+## 更多说明
+
 - [导入数据（详细说明）](#导入数据详细说明)
 - [导出数据](#导出数据)
 - [屏幕：全屏、缩放、刘海、键盘、横屏](#屏幕全屏缩放刘海键盘横屏)
@@ -33,58 +77,6 @@
 - [手机测试清单](#手机测试清单)
 - [源码结构](#源码结构)
 - [许可](#许可)
-
----
-
-## 下载和更新
-
-- 下载：到 [Releases](https://github.com/Mtaisha/Silly-Tavern-apk/releases/latest) 下载最新的 `jiuguan-<版本>-st<SillyTavern 版本>-arm64.apk`，用手机浏览器打开就能直接下。
-- 更新 app：新版本都发在 [Releases](https://github.com/Mtaisha/Silly-Tavern-apk/releases)。下载新 APK 直接覆盖安装，不用卸载，聊天、角色、设置都还在。
-  app 里 ☰ → 酒馆 App 设置 → 关于 → 源代码和新版本，也能跳到这个仓库。
-- 更新 SillyTavern 本体：不用等新 APK，app 里就能升级，见 [升级 SillyTavern](#升级-sillytavern)。
-- 只有 arm64-v8a 版本（这几年的安卓手机基本都是）。
-
----
-
-## 从 Termux 搬家：三步
-
-原来在 Termux 里用 SillyTavern 的，数据可以整个搬进来：角色、聊天、世界书、预设、设置、API key、扩展和服务端插件都会带上。
-
-1. 在 Termux 里粘贴这一行、回车（最好先按 Ctrl+C 关掉正在运行的 SillyTavern）：
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools/termux-export.sh | bash
-   ```
-
-   第一次会弹存储权限，点「允许」。跑完手机的「下载」文件夹里会多一个 `酒馆数据包-日期.zip`。
-2. 装好酒馆，打开一次，等它进到 SillyTavern 界面。
-3. ☰ → 酒馆 App 设置 → 数据 → 导入数据包（zip）→ 选刚才那个 zip。app 会先自动备份现有数据，再导入，然后重启酒馆。
-
-导出脚本是本仓库的配套工具，源码就是 [`tools/termux-export.sh`](tools/termux-export.sh)。它会读取文件字节来压缩和校验，但不会解析、打印或上传内容。
-数据包里有你的 API key，不要发给别人或传到网上。脚本的更多用法、数据包格式、导入时具体做了什么，见 [导入数据（详细说明）](#导入数据详细说明)。
-
----
-
-## 怎么安装
-
-1. 手机浏览器打开 [Releases](https://github.com/Mtaisha/Silly-Tavern-apk/releases/latest)，下载 APK。
-2. 点开 APK。第一次会提示「禁止安装未知来源应用」：点「设置」，给你用的浏览器或文件管理打开「允许安装未知应用」，返回继续安装。
-   - vivo / OriginOS 可能会弹「安全检测」或要求输入 vivo 账号密码，选「继续安装」/ 输密码即可。
-3. 以后有新版本：直接装新 APK 覆盖，不用卸载，数据都在。
-
-> ⚠️ 不要卸载再装——卸载会把 app 里的数据一起删掉。要换手机或重装前，先 [导出数据](#导出数据)。
-
----
-
-## 日常使用：跟普通 app 一样
-
-- 点开图标才启动酒馆后台。还没起来时显示开屏（开屏图、花体的「Silly Tavern」和一条细进度条）。第一次打开要解压程序，会久一点（一两分钟）。
-- 切到别的 app（比如去点个外卖）：酒馆继续在后台跑，通知栏有一个「酒馆 · 营业中」的常驻通知。回来直接接着用，正在生成的回复也会继续。
-- 在最近任务里把酒馆划掉：酒馆的 Node 进程、前台服务、唤醒锁全部结束，app 进程也退出，不留任何后台。通知栏的「退出」按钮、App 设置里的「退出」效果一样。
-- 按返回键：先关掉酒馆里打开的面板 / 弹窗；没有可关的就把 app 退到后台（不会停止）。
-- App 设置在哪：酒馆左下角 ☰ 菜单 → 酒馆 App 设置；或者长按桌面图标 → App 设置。
-
-酒馆只在手机本机 `127.0.0.1` 上监听，默认不对局域网开放（App 设置 → 高级 里可以手动打开）。
 
 ---
 
@@ -123,10 +115,10 @@
 
 ### 在 Termux 里打包
 
-就是 [三步](#从-termux-搬家三步) 里的那一行：
+就是 [三步](#从-termux-导出并导入三步) 里的那一行：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools/termux-export.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Mtaisha/silly-tavern-apk/main/tools/termux-export.sh | bash
 ```
 
 跑完手机的「下载」文件夹里会多一个 `酒馆数据包-日期.zip`。它会自己处理这些事：
@@ -139,7 +131,7 @@ curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools
 装在别的地方，或者 `~` 下面有好几个 SillyTavern 时，把目录写在 `bash -s --` 后面，其他参数也写在那里：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools/termux-export.sh | bash -s -- /你的/SillyTavern
+curl -fsSL https://raw.githubusercontent.com/Mtaisha/silly-tavern-apk/main/tools/termux-export.sh | bash -s -- /你的/SillyTavern
 ```
 
 - `-o 目录`：zip 放到别处（默认是手机的「下载」）
@@ -248,7 +240,7 @@ app 另外默认开着硬件加速，并让 WebView 提前栅格化屏幕外的�
 退回：恢复到安装包自带版本（或者「修复程序文件」）会重新解压 APK 里带的 SillyTavern，数据不受影响。
 以后装了带更高版本 SillyTavern 的新 APK，也会自动换成新 APK 里的版本。
 
-app 本身的新版本不在这里升级，去 [Releases](https://github.com/Mtaisha/Silly-Tavern-apk/releases) 下载新 APK 覆盖安装。
+app 本身的新版本不在这里升级，去 [Releases](https://github.com/Mtaisha/silly-tavern-apk/releases) 下载新 APK 覆盖安装。
 
 ---
 

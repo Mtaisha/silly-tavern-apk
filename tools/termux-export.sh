@@ -1,10 +1,10 @@
 #!/data/data/com.termux/files/usr/bin/bash
 # 在 Termux 里把 SillyTavern 的全部数据打包成「酒馆」app 能直接导入的 zip。
 # Packs all of your SillyTavern data in Termux into a zip that the Jiuguan (酒馆) app can import.
-# Messages are in Chinese; see README.en.md in https://github.com/Mtaisha/Silly-Tavern-apk for details.
+# Messages are in Chinese; see README.en.md in https://github.com/Mtaisha/silly-tavern-apk for details.
 #
 # 在 Termux 里粘贴这一行、回车 / Paste this line into Termux and press Enter:
-#   curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools/termux-export.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/Mtaisha/silly-tavern-apk/main/tools/termux-export.sh | bash
 #
 # 想指定目录或者跳过提问，参数写在 bash -s -- 后面（下载下来用 bash termux-export.sh 运行也一样）：
 #   curl -fsSL …/termux-export.sh | bash -s -- [SillyTavern 目录] [-o 输出目录] [-y]

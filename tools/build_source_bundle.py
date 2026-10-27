@@ -174,7 +174,7 @@ inside st-bundle.zip are already distributed in source form with their license
 files.
 
 The Jiuguan project modified SillyTavern on 2026-10-18. Source is also published
-at https://github.com/Mtaisha/Silly-Tavern-apk and beside each signed Release APK.
+at https://github.com/Mtaisha/silly-tavern-apk and beside each signed Release APK.
 """
 
         args.output.parent.mkdir(parents=True, exist_ok=True)

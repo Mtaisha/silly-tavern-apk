@@ -83,7 +83,7 @@ class ReleaseGuardsTest(unittest.TestCase):
     def test_modified_sillytavern_files_carry_date_and_source_offer(self) -> None:
         patches = "\n".join(path.read_text(encoding="utf-8") for path in sorted((ROOT / "patches").glob("*.patch")))
         self.assertGreaterEqual(patches.count("Modified by Jiuguan project on 2026-10-18"), 2)
-        self.assertIn("https://github.com/Mtaisha/Silly-Tavern-apk", patches)
+        self.assertIn("https://github.com/Mtaisha/silly-tavern-apk", patches)
 
 
 if __name__ == "__main__":

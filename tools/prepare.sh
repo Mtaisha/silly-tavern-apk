@@ -116,7 +116,7 @@ python3 -I "$ROOT/tools/build_third_party_notices.py" \
     echo "================================================================================"
     echo "Jiuguan modified SillyTavern on 2026-10-18; the exact changes are in patches/."
     echo "All users, including people connecting through LAN access, can obtain the corresponding source at:"
-    echo "https://github.com/Mtaisha/Silly-Tavern-apk"
+    echo "https://github.com/Mtaisha/silly-tavern-apk"
     echo "Every signed Release publishes a jiuguan-*-corresponding-source.zip beside the APK."
     echo "Upstream SillyTavern: https://github.com/SillyTavern/SillyTavern"
     echo "Upstream TavernDroid: https://github.com/S0ul-Sh3ll/TavernDroid"

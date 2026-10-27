@@ -1,26 +1,68 @@
 <p align="center"><img src="docs/icon.png" width="96" alt=""></p>
 
-# Jiuguan (酒馆)
+# SillyTavern APK (Jiuguan / 酒馆)
 
 [中文](README.md) | English
 
-The original SillyTavern, packed whole into one Android app: Node.js and git are built in, no Termux needed — tap the icon and it runs.
+No setup and no Termux required. Download the APK, install it and open the complete SillyTavern app; Node.js and git are already built in.
 For arm64 Android phones (Android 10 or later). The app's own screens are in Chinese only; it is tuned for the aggressive battery management on vivo / OriginOS.
 
 "Jiuguan" (酒馆) means "tavern". In this README, app buttons are given with their Chinese label followed by an English translation in parentheses, so you can find them on screen.
 
-Based on [TavernDroid](https://github.com/S0ul-Sh3ll/TavernDroid) (AGPL-3.0). Why TavernDroid rather than ST-android or SillyTavern-Android:
-it had already solved the hardest parts (running the original Node + git without Termux, third-party extensions and server plugins working, even vivo freezing background web pages),
-while of the other two, one opens SillyTavern in an external browser and the other is only a web shell that still depends on Termux.
+## Download the APK
+
+- Download: get the latest `jiuguan-<version>-st<SillyTavern version>-arm64.apk` from [Releases](https://github.com/Mtaisha/silly-tavern-apk/releases/latest). Open the page in your phone's browser and download it directly.
+- App updates: every new version is published on [Releases](https://github.com/Mtaisha/silly-tavern-apk/releases). Download the new APK and install it over the old one — no need to uninstall; chats, characters and settings stay.
+  In the app, ☰ → 酒馆 App 设置 (App settings) → 关于 (About) → 源代码和新版本 (Source code and new versions) also takes you to this repository.
+- SillyTavern updates: no need to wait for a new APK — SillyTavern can be upgraded inside the app, see [Upgrading SillyTavern](#upgrading-sillytavern).
+- arm64-v8a only (practically every Android phone from recent years).
 
 ---
 
-## Contents
+## Export from Termux and import in three steps
 
-- [Download and updates](#download-and-updates)
-- [Moving from Termux in three steps](#moving-from-termux-in-three-steps)
-- [Installing](#installing)
-- [Everyday use: like any other app](#everyday-use-like-any-other-app)
+If you have been running SillyTavern in Termux, you can move everything over: characters, chats, world info, presets, settings, API keys, extensions and server plugins.
+
+1. Paste this line into Termux and press Enter (preferably stop the running SillyTavern with Ctrl+C first):
+
+   ```bash
+   curl -fsSL https://raw.githubusercontent.com/Mtaisha/silly-tavern-apk/main/tools/termux-export.sh | bash
+   ```
+
+   The first time, Android asks for storage permission — tap Allow. When it finishes, your phone's Download folder contains `酒馆数据包-<date>.zip` ("tavern data package").
+2. Install Jiuguan, open it once and wait until the SillyTavern interface appears.
+3. ☰ → 酒馆 App 设置 (App settings) → 数据 (Data) → 导入数据包（zip）(Import data package) → pick that zip. The app first backs up its current data automatically, then imports and restarts SillyTavern.
+
+The export script is this repository's companion tool; its source is [`tools/termux-export.sh`](tools/termux-export.sh). It reads file bytes to compress and verify them, but never parses, prints or uploads their contents. Its messages are in Chinese.
+The package contains your API keys, so don't share it or upload it anywhere. For more options, the package format and exactly what the import does, see [Importing data (details)](#importing-data-details).
+
+---
+
+## Installation and usage
+
+### Installing
+
+1. Open [Releases](https://github.com/Mtaisha/silly-tavern-apk/releases/latest) in your phone's browser and download the APK.
+2. Open the APK. The first time, Android says installing apps from unknown sources is blocked: tap Settings, allow your browser or file manager to install unknown apps, then go back and continue.
+   - vivo / OriginOS may show a "security check" or ask for your vivo account password; choose Continue installing / enter the password.
+3. For future versions: install the new APK over the old one. No uninstall needed; your data stays.
+
+> ⚠️ Don't uninstall and reinstall — uninstalling deletes the app's data too. Before switching phones or reinstalling, [export your data](#exporting-data) first.
+
+### Everyday use: like any other app
+
+- SillyTavern starts only when you open the app. Until it's up you see the splash screen (a picture, "Silly Tavern" in script lettering and a thin progress bar). The first launch unpacks the program and takes longer (a minute or two).
+- Switch to another app (to order takeout, say): SillyTavern keeps running in the background, with a persistent "酒馆 · 营业中" ("open for business") notification. Come back and carry on; a reply that's being generated keeps going.
+- Swipe the app away in Recents: the Node process, the foreground service and the wake lock all end, and the app process exits — nothing is left running. The 退出 (Exit) button in the notification and in App settings does the same.
+- Back button: first closes open panels / popups in SillyTavern; if there's nothing to close, it sends the app to the background (it keeps running).
+- Where App settings are: ☰ menu at the bottom left of SillyTavern → 酒馆 App 设置; or long-press the home screen icon → App 设置.
+
+SillyTavern listens only on `127.0.0.1` on the phone itself and is not exposed to your local network by default (you can turn that on under App settings → 高级 (Advanced)).
+
+---
+
+## More documentation
+
 - [Importing data (details)](#importing-data-details)
 - [Exporting data](#exporting-data)
 - [Screen: fullscreen, scaling, notches, keyboard, landscape](#screen-fullscreen-scaling-notches-keyboard-landscape)
@@ -35,58 +77,6 @@ while of the other two, one opens SillyTavern in an external browser and the oth
 - [Phone test checklist](#phone-test-checklist)
 - [Source layout](#source-layout)
 - [License](#license)
-
----
-
-## Download and updates
-
-- Download: get the latest `jiuguan-<version>-st<SillyTavern version>-arm64.apk` from [Releases](https://github.com/Mtaisha/Silly-Tavern-apk/releases/latest). Open the page in your phone's browser and download it directly.
-- App updates: every new version is published on [Releases](https://github.com/Mtaisha/Silly-Tavern-apk/releases). Download the new APK and install it over the old one — no need to uninstall; chats, characters and settings stay.
-  In the app, ☰ → 酒馆 App 设置 (App settings) → 关于 (About) → 源代码和新版本 (Source code and new versions) also takes you to this repository.
-- SillyTavern updates: no need to wait for a new APK — SillyTavern can be upgraded inside the app, see [Upgrading SillyTavern](#upgrading-sillytavern).
-- arm64-v8a only (practically every Android phone from recent years).
-
----
-
-## Moving from Termux in three steps
-
-If you have been running SillyTavern in Termux, you can move everything over: characters, chats, world info, presets, settings, API keys, extensions and server plugins.
-
-1. Paste this line into Termux and press Enter (preferably stop the running SillyTavern with Ctrl+C first):
-
-   ```bash
-   curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools/termux-export.sh | bash
-   ```
-
-   The first time, Android asks for storage permission — tap Allow. When it finishes, your phone's Download folder contains `酒馆数据包-<date>.zip` ("tavern data package").
-2. Install Jiuguan, open it once and wait until the SillyTavern interface appears.
-3. ☰ → 酒馆 App 设置 (App settings) → 数据 (Data) → 导入数据包（zip）(Import data package) → pick that zip. The app first backs up its current data automatically, then imports and restarts SillyTavern.
-
-The export script is this repository's companion tool; its source is [`tools/termux-export.sh`](tools/termux-export.sh). It reads file bytes to compress and verify them, but never parses, prints or uploads their contents. Its messages are in Chinese.
-The package contains your API keys, so don't share it or upload it anywhere. For more options, the package format and exactly what the import does, see [Importing data (details)](#importing-data-details).
-
----
-
-## Installing
-
-1. Open [Releases](https://github.com/Mtaisha/Silly-Tavern-apk/releases/latest) in your phone's browser and download the APK.
-2. Open the APK. The first time, Android says installing apps from unknown sources is blocked: tap Settings, allow your browser or file manager to install unknown apps, then go back and continue.
-   - vivo / OriginOS may show a "security check" or ask for your vivo account password; choose Continue installing / enter the password.
-3. For future versions: install the new APK over the old one. No uninstall needed; your data stays.
-
-> ⚠️ Don't uninstall and reinstall — uninstalling deletes the app's data too. Before switching phones or reinstalling, [export your data](#exporting-data) first.
-
----
-
-## Everyday use: like any other app
-
-- SillyTavern starts only when you open the app. Until it's up you see the splash screen (a picture, "Silly Tavern" in script lettering and a thin progress bar). The first launch unpacks the program and takes longer (a minute or two).
-- Switch to another app (to order takeout, say): SillyTavern keeps running in the background, with a persistent "酒馆 · 营业中" ("open for business") notification. Come back and carry on; a reply that's being generated keeps going.
-- Swipe the app away in Recents: the Node process, the foreground service and the wake lock all end, and the app process exits — nothing is left running. The 退出 (Exit) button in the notification and in App settings does the same.
-- Back button: first closes open panels / popups in SillyTavern; if there's nothing to close, it sends the app to the background (it keeps running).
-- Where App settings are: ☰ menu at the bottom left of SillyTavern → 酒馆 App 设置; or long-press the home screen icon → App 设置.
-
-SillyTavern listens only on `127.0.0.1` on the phone itself and is not exposed to your local network by default (you can turn that on under App settings → 高级 (Advanced)).
 
 ---
 
@@ -125,10 +115,10 @@ These are accepted too:
 
 ### Packing in Termux
 
-It's the one line from the [three steps](#moving-from-termux-in-three-steps):
+It's the one line from the [three steps](#export-from-termux-and-import-in-three-steps):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools/termux-export.sh | bash
+curl -fsSL https://raw.githubusercontent.com/Mtaisha/silly-tavern-apk/main/tools/termux-export.sh | bash
 ```
 
 It leaves `酒馆数据包-<date>.zip` in your phone's Download folder and takes care of these things by itself:
@@ -141,7 +131,7 @@ It leaves `酒馆数据包-<date>.zip` in your phone's Download folder and takes
 If SillyTavern lives somewhere else, or there are several of them under `~`, put the directory after `bash -s --`, along with any other options:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Mtaisha/Silly-Tavern-apk/main/tools/termux-export.sh | bash -s -- /path/to/SillyTavern
+curl -fsSL https://raw.githubusercontent.com/Mtaisha/silly-tavern-apk/main/tools/termux-export.sh | bash -s -- /path/to/SillyTavern
 ```
 
 - `-o <dir>`: put the zip somewhere else (default: the phone's Download folder)
@@ -250,7 +240,7 @@ Upgrading only replaces the program directory — data, config.yaml, plugins and
 Going back: 恢复到安装包自带版本 (Restore the version bundled with the APK), or 修复程序文件 (Repair program files), re-extracts the SillyTavern bundled in the APK; your data is unaffected.
 When you later install a new APK that bundles a newer SillyTavern, it switches to that version automatically as well.
 
-New versions of the app itself aren't upgraded here — download the new APK from [Releases](https://github.com/Mtaisha/Silly-Tavern-apk/releases) and install it over the old one.
+New versions of the app itself aren't upgraded here — download the new APK from [Releases](https://github.com/Mtaisha/silly-tavern-apk/releases) and install it over the old one.
 
 ---
 

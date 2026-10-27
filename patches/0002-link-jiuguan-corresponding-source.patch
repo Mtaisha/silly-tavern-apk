@@ -3,7 +3,7 @@
 @@ -27,2 +27,7 @@
              </a>
 +            <!-- Modified by Jiuguan project on 2026-10-18: AGPL corresponding-source offer. -->
-+            <a class="menu_button menu_button_icon" target="_blank" href="https://github.com/Mtaisha/Silly-Tavern-apk">
++            <a class="menu_button menu_button_icon" target="_blank" href="https://github.com/Mtaisha/silly-tavern-apk">
 +                <i class="fa-solid fa-code-branch"></i>
 +                <span>Jiuguan source / 酒馆源码</span>
 +            </a>
