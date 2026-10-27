@@ -2,7 +2,7 @@
 
 # SillyTavern APK (Jiuguan / 酒馆)
 
-[中文](README.md) | English
+[Bilingual home](README.md) | [中文完整说明](README.zh.md) | English
 
 No setup and no Termux required. Download the APK, install it and open the complete SillyTavern app; Node.js and git are already built in.
 For arm64 Android phones (Android 10 or later). The app's own screens are in Chinese only; it is tuned for the aggressive battery management on vivo / OriginOS.
